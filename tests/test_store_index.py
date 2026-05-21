@@ -27,7 +27,12 @@ class _FakePC:
         self.deleted = True
 
     def create_index(self, name, dimension, metric, spec):
-        self.created_with = {"name": name, "dimension": dimension, "metric": metric}
+        self.created_with = {
+            "name": name,
+            "dimension": dimension,
+            "metric": metric,
+            "spec": spec,
+        }
 
 
 def test_recreate_index_deletes_existing_then_creates():
@@ -38,6 +43,7 @@ def test_recreate_index_deletes_existing_then_creates():
     assert pc.created_with["name"] == "medical-chatbot"
     assert pc.created_with["dimension"] == 384
     assert pc.created_with["metric"] == "cosine"
+    assert pc.created_with["spec"].cloud == "aws"
 
 
 def test_recreate_index_skips_delete_when_absent():
@@ -45,4 +51,5 @@ def test_recreate_index_skips_delete_when_absent():
     cfg = Config.from_env({})
     store_index.recreate_index(pc, cfg)
     assert pc.deleted is False
-    assert pc.created_with is not None
+    assert pc.created_with["name"] == "medical-chatbot"
+    assert pc.created_with["dimension"] == 384
