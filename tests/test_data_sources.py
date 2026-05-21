@@ -74,3 +74,23 @@ def test_gather_dropin_tags_source_type(monkeypatch):
     )
     docs = data_sources.gather_documents(cfg)
     assert docs[0].metadata["source_type"] == "file"
+
+
+def test_fetch_web_sources_is_failsoft_on_http_error(monkeypatch):
+    monkeypatch.setattr(
+        data_sources.requests,
+        "get",
+        lambda url, **kw: _FakeResp("error page", ok=False),
+    )
+    docs = data_sources.fetch_web_sources([{"label": "L", "url": "https://x"}])
+    assert docs == []
+
+
+def test_fetch_web_sources_skips_empty_content(monkeypatch):
+    monkeypatch.setattr(
+        data_sources.requests,
+        "get",
+        lambda url, **kw: _FakeResp("<p>   </p>"),  # collapses to ''
+    )
+    docs = data_sources.fetch_web_sources([{"label": "L", "url": "https://x"}])
+    assert docs == []
