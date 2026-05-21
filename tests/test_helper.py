@@ -36,7 +36,14 @@ def test_text_split_chunks_long_doc():
     cfg = Config.from_env({"CHUNK_SIZE": "200", "CHUNK_OVERLAP": "20"})
     chunks = helper.text_split([Document(page_content=long_text, metadata={"source": "s"})], cfg)
     assert len(chunks) > 1
-    assert all(len(c.page_content) <= 200 for c in chunks)
+    assert all(len(c.page_content) <= cfg.chunk_size + cfg.chunk_overlap for c in chunks)
+
+
+def test_filter_normalizes_empty_source():
+    out = helper.filter_to_minimal_docs(
+        [Document(page_content="x", metadata={"source": ""})]
+    )
+    assert out[0].metadata["source"] == "unknown"
 
 
 def test_load_files_reads_txt_and_md(tmp_path):

@@ -26,7 +26,11 @@ def load_files(data_dir: str) -> List[Document]:
     ]
     for glob, loader_cls, loader_kwargs in loader_specs:
         loader = DirectoryLoader(
-            data_dir, glob=glob, loader_cls=loader_cls, loader_kwargs=loader_kwargs
+            data_dir,
+            glob=glob,
+            loader_cls=loader_cls,
+            loader_kwargs=loader_kwargs,
+            recursive=True,
         )
         documents.extend(loader.load())
     return documents
@@ -37,7 +41,7 @@ def filter_to_minimal_docs(docs: List[Document]) -> List[Document]:
     minimal_docs: List[Document] = []
     for doc in docs:
         metadata = {k: doc.metadata[k] for k in _METADATA_KEYS if k in doc.metadata}
-        metadata.setdefault("source", doc.metadata.get("source") or "unknown")
+        metadata["source"] = doc.metadata.get("source") or "unknown"
         minimal_docs.append(Document(page_content=doc.page_content, metadata=metadata))
     return minimal_docs
 
