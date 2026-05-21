@@ -1,61 +1,105 @@
-# Build-a-Complete-Medical-Chatbot-with-LLMs-LangChain-Pinecone-Flask-AWS
+# Medical Chatbot (LLMs · LangChain · Pinecone · Flask)
+
+A Retrieval-Augmented Generation (RAG) medical Q&A chatbot. It ingests medical
+reference material from three sources, embeds it with a local sentence-transformer
+model, stores the vectors in Pinecone, and answers questions with OpenAI through a
+safety-aware prompt.
+
+> ⚠️ **Medical disclaimer:** This project is for educational use only. Its answers are
+> general health information, **not a substitute for professional medical care**. For
+> emergencies, contact your local emergency services.
+
+## Architecture
+
+```
+curated_data.py   data/ folder        WHO/CDC/NIH/MedlinePlus
+   (built-in)     (drop-in files)        (live web fetch)
+        \              |                      /
+         \             |                     /
+          v            v                    v
+        src/data_sources.gather_documents()   (rich metadata)
+                       |
+        filter_to_minimal_docs → text_split → BGE embeddings (384-dim)
+                       |
+              Pinecone index "medical-chatbot"
+                       |
+   app.py: retriever (top-k) → gpt-4.1 + safety prompt → answer
+```
+
+## Data sources (kept up to date)
+
+Ingestion is unified in `src/data_sources.py` and each source can be toggled in `.env`:
+
+- **Curated** (`ENABLE_CURATED`) — built-in, cited reference docs in `src/curated_data.py`
+  (stroke BE-FAST, vital signs, when to seek emergency care, hypertension, type 2
+  diabetes, medication safety, prevention), grounded in current WHO/CDC/MedlinePlus pages.
+- **Drop-in files** (`ENABLE_DROPIN`) — drop any `.pdf`, `.txt`, or `.md` files into `data/`
+  and re-run ingestion. **Note:** `data/Medical_book.pdf` (the 2003 Gale Encyclopedia of
+  Medicine, ~16 MB) ships with the repo and **is ingested by default**. It is a broad medical
+  reference, but it is dated — the curated and live-web sources add current guidance on top of
+  it. To exclude it, delete the file from `data/` or set `ENABLE_DROPIN=false` in `.env`.
+- **Live web** (`ENABLE_WEB`) — fetches current WHO/MedlinePlus fact sheets. Fail-soft: an
+  unreachable page is logged and skipped, never crashing the build.
 
 # How to run?
-### STEPS:
 
-Clone the repository
-
+### STEP 01 — Create and activate an environment
 ```bash
-git clonehttps://github.com/entbappy/Build-a-Complete-Medical-Chatbot-with-LLMs-LangChain-Pinecone-Flask-AWS.git
-```
-### STEP 01- Create a conda environment after opening the repository
-
-```bash
-conda create -n medibot python=3.10 -y
-```
-
-```bash
+conda create -n medibot python=3.12 -y
 conda activate medibot
 ```
 
-
-### STEP 02- install the requirements
+### STEP 02 — Install the requirements
 ```bash
 pip install -r requirements.txt
 ```
 
-
-### Create a `.env` file in the root directory and add your Pinecone & openai credentials as follows:
+### STEP 03 — Configure `.env`
+Copy `.env.example` to `.env` and fill in your keys (every other variable has a sensible
+default — see `.env.example` for the full list):
 
 ```ini
-PINECONE_API_KEY = "xxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
-OPENAI_API_KEY = "xxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+PINECONE_API_KEY="your-pinecone-key"
+OPENAI_API_KEY="your-openai-key"
 ```
 
+Key defaults: `EMBEDDING_MODEL=BAAI/bge-small-en-v1.5` (384-dim, runs locally),
+`LLM_MODEL=gpt-4.1` (set `gpt-4o-mini` for cheaper runs), `INDEX_NAME=medical-chatbot`.
 
+### STEP 04 — Build the Pinecone index
 ```bash
-# run the following command to store embeddings to pinecone
 python store_index.py
 ```
 
+> ⚠️ This **recreates** the `medical-chatbot` index: if it already exists it is **deleted**
+> and rebuilt from scratch, so it only contains current BGE vectors. If the upsert step
+> fails partway through, just re-run the command. The first run also downloads the
+> embedding model (~130 MB).
+
+### STEP 05 — Run the app
 ```bash
-# Finally run the following command
 python app.py
 ```
 
-Now,
+Then open http://localhost:8080 . (Set `FLASK_DEBUG=true` to enable Flask debug mode.)
+
+## Running the tests
 ```bash
-open up localhost:
+pip install -r requirements-dev.txt
+pytest
 ```
 
+The test suite runs fully offline — no Pinecone/OpenAI calls or model downloads required.
 
 ### Techstack Used:
 
-- Python
-- LangChain
+- Python 3.12
+- LangChain (community, huggingface, text-splitters, pinecone, openai)
+- Sentence-Transformers (BAAI/bge-small-en-v1.5)
+- Pinecone (serverless vector store)
+- OpenAI (gpt-4.1)
 - Flask
-- GPT
-- Pinecone
+- BeautifulSoup4 + requests (web ingestion)
 
 
 
