@@ -1,49 +1,56 @@
-from langchain.document_loaders import PyPDFLoader, DirectoryLoader
-from langchain.text_splitter import RecursiveCharacterTextSplitter
-from langchain.embeddings import HuggingFaceEmbeddings
+from __future__ import annotations
+
 from typing import List
-from langchain.schema import Document
+
+from langchain_community.document_loaders import (
+    DirectoryLoader,
+    PyPDFLoader,
+    TextLoader,
+)
+from langchain_core.documents import Document
+from langchain_huggingface import HuggingFaceEmbeddings
+from langchain_text_splitters import RecursiveCharacterTextSplitter
+
+from src.config import Config
+
+_METADATA_KEYS = ("source", "source_type", "url", "retrieved_at")
 
 
-#Extract Data From the PDF File
-def load_pdf_file(data):
-    loader= DirectoryLoader(data,
-                            glob="*.pdf",
-                            loader_cls=PyPDFLoader)
-
-    documents=loader.load()
-
+def load_files(data_dir: str) -> List[Document]:
+    """Load every PDF, TXT and Markdown file from a directory."""
+    documents: List[Document] = []
+    loader_specs = [
+        ("**/*.pdf", PyPDFLoader, {}),
+        ("**/*.txt", TextLoader, {"autodetect_encoding": True}),
+        ("**/*.md", TextLoader, {"autodetect_encoding": True}),
+    ]
+    for glob, loader_cls, loader_kwargs in loader_specs:
+        loader = DirectoryLoader(
+            data_dir, glob=glob, loader_cls=loader_cls, loader_kwargs=loader_kwargs
+        )
+        documents.extend(loader.load())
     return documents
 
 
-
 def filter_to_minimal_docs(docs: List[Document]) -> List[Document]:
-    """
-    Given a list of Document objects, return a new list of Document objects
-    containing only 'source' in metadata and the original page_content.
-    """
+    """Keep page_content plus only the metadata keys we rely on downstream."""
     minimal_docs: List[Document] = []
     for doc in docs:
-        src = doc.metadata.get("source")
-        minimal_docs.append(
-            Document(
-                page_content=doc.page_content,
-                metadata={"source": src}
-            )
-        )
+        metadata = {k: doc.metadata[k] for k in _METADATA_KEYS if k in doc.metadata}
+        metadata.setdefault("source", doc.metadata.get("source") or "unknown")
+        minimal_docs.append(Document(page_content=doc.page_content, metadata=metadata))
     return minimal_docs
 
 
+def text_split(docs: List[Document], config: Config | None = None) -> List[Document]:
+    config = config or Config.from_env()
+    splitter = RecursiveCharacterTextSplitter(
+        chunk_size=config.chunk_size,
+        chunk_overlap=config.chunk_overlap,
+    )
+    return splitter.split_documents(docs)
 
-#Split the Data into Text Chunks
-def text_split(extracted_data):
-    text_splitter=RecursiveCharacterTextSplitter(chunk_size=500, chunk_overlap=20)
-    text_chunks=text_splitter.split_documents(extracted_data)
-    return text_chunks
 
-
-
-#Download the Embeddings from HuggingFace 
-def download_hugging_face_embeddings():
-    embeddings=HuggingFaceEmbeddings(model_name='sentence-transformers/all-MiniLM-L6-v2')  #this model return 384 dimensions
-    return embeddings
+def download_embeddings(config: Config | None = None) -> HuggingFaceEmbeddings:
+    config = config or Config.from_env()
+    return HuggingFaceEmbeddings(model_name=config.embedding_model)
