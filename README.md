@@ -34,7 +34,10 @@ Ingestion is unified in `src/data_sources.py` and each source can be toggled in 
   (stroke BE-FAST, vital signs, when to seek emergency care, hypertension, type 2
   diabetes, medication safety, prevention), grounded in current WHO/CDC/MedlinePlus pages.
 - **Drop-in files** (`ENABLE_DROPIN`) — drop any `.pdf`, `.txt`, or `.md` files into `data/`
-  and re-run ingestion.
+  and re-run ingestion. **Note:** `data/Medical_book.pdf` (the 2003 Gale Encyclopedia of
+  Medicine, ~16 MB) ships with the repo and **is ingested by default**. It is a broad medical
+  reference, but it is dated — the curated and live-web sources add current guidance on top of
+  it. To exclude it, delete the file from `data/` or set `ENABLE_DROPIN=false` in `.env`.
 - **Live web** (`ENABLE_WEB`) — fetches current WHO/MedlinePlus fact sheets. Fail-soft: an
   unreachable page is logged and skipped, never crashing the build.
 
