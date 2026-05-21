@@ -45,9 +45,15 @@ def create_app(config: Config | None = None) -> Flask:
 
     @app.route("/get", methods=["GET", "POST"])
     def chat():
-        msg = request.form["msg"]
+        msg = request.form.get("msg", "").strip()
+        if not msg:
+            return "Please enter a message.", 400
         print("User:", msg)
-        response = rag_chain.invoke({"input": msg})
+        try:
+            response = rag_chain.invoke({"input": msg})
+        except Exception as exc:  # noqa: BLE001 - return a friendly error, not a stack trace
+            print("RAG error:", exc)
+            return "Sorry, I couldn't process your request. Please try again later.", 503
         print("Bot:", response["answer"])
         return str(response["answer"])
 
@@ -55,4 +61,5 @@ def create_app(config: Config | None = None) -> Flask:
 
 
 if __name__ == "__main__":
-    create_app().run(host="0.0.0.0", port=8080, debug=True)
+    debug = os.getenv("FLASK_DEBUG", "false").lower() in ("1", "true", "yes", "on")
+    create_app().run(host="0.0.0.0", port=8080, debug=debug)
