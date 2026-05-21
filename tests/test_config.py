@@ -12,6 +12,7 @@ def test_defaults_when_env_empty():
     assert cfg.chunk_overlap == 50
     assert cfg.retriever_k == 4
     assert cfg.enable_curated is True
+    assert cfg.enable_dropin is True
     assert cfg.enable_web is True
     assert cfg.pinecone_cloud == "aws"
     assert cfg.pinecone_region == "us-east-1"
@@ -36,3 +37,17 @@ def test_require_keys_raises_naming_missing():
 def test_require_keys_passes_when_present():
     cfg = Config.from_env({"PINECONE_API_KEY": "x", "OPENAI_API_KEY": "y"})
     cfg.require_keys()  # should not raise
+
+
+def test_require_keys_raises_both_missing():
+    cfg = Config.from_env({})
+    with pytest.raises(ValueError) as exc:
+        cfg.require_keys()
+    assert "PINECONE_API_KEY" in str(exc.value)
+    assert "OPENAI_API_KEY" in str(exc.value)
+
+
+def test_invalid_int_env_names_variable():
+    with pytest.raises(ValueError) as exc:
+        Config.from_env({"EMBEDDING_DIM": "not-a-number"})
+    assert "EMBEDDING_DIM" in str(exc.value)

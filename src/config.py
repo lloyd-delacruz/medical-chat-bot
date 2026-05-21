@@ -8,6 +8,15 @@ def _as_bool(value: str) -> bool:
     return str(value).strip().lower() in {"1", "true", "yes", "on"}
 
 
+def _as_int(key: str, raw: str) -> int:
+    try:
+        return int(raw)
+    except ValueError:
+        raise ValueError(
+            f"Environment variable {key} must be an integer; got {raw!r}"
+        ) from None
+
+
 @dataclass
 class Config:
     pinecone_api_key: str | None
@@ -34,11 +43,11 @@ class Config:
             openai_api_key=env.get("OPENAI_API_KEY"),
             index_name=env.get("INDEX_NAME", "medical-chatbot"),
             embedding_model=env.get("EMBEDDING_MODEL", "BAAI/bge-small-en-v1.5"),
-            embedding_dim=int(env.get("EMBEDDING_DIM", "384")),
+            embedding_dim=_as_int("EMBEDDING_DIM", env.get("EMBEDDING_DIM", "384")),
             llm_model=env.get("LLM_MODEL", "gpt-4.1"),
-            chunk_size=int(env.get("CHUNK_SIZE", "500")),
-            chunk_overlap=int(env.get("CHUNK_OVERLAP", "50")),
-            retriever_k=int(env.get("RETRIEVER_K", "4")),
+            chunk_size=_as_int("CHUNK_SIZE", env.get("CHUNK_SIZE", "500")),
+            chunk_overlap=_as_int("CHUNK_OVERLAP", env.get("CHUNK_OVERLAP", "50")),
+            retriever_k=_as_int("RETRIEVER_K", env.get("RETRIEVER_K", "4")),
             data_dir=env.get("DATA_DIR", "data/"),
             enable_curated=_as_bool(env.get("ENABLE_CURATED", "true")),
             enable_dropin=_as_bool(env.get("ENABLE_DROPIN", "true")),
